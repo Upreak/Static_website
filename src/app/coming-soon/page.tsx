@@ -57,13 +57,34 @@ export default function ComingSoonPage() {
   const handleNotifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitStatus("idle");
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSubmitStatus("success");
-      setEmail("");
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          name: email.split('@')[0] // Use email prefix as name if not provided
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSubmitStatus("success");
+        setEmail("");
+      } else {
+        setSubmitStatus("error");
+        // Show specific error message if available
+        if (data.error) {
+          console.error('Subscription error:', data.error);
+        }
+      }
     } catch (error) {
+      console.error('Network error:', error);
       setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -107,7 +128,7 @@ export default function ComingSoonPage() {
                 <span className="text-gray-600 hover:text-gray-900">Back to Home</span>
               </Link>
               <div className="h-6 w-px bg-gray-300"></div>
-              <img src="/logo.svg" alt="Upreak Logo" className="h-8 w-auto" />
+              <img src="/Text logo.png" alt="Upreak Logo" className="h-8 w-auto" />
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/">
