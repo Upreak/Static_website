@@ -12,7 +12,7 @@ const hostname = '0.0.0.0';
 async function createCustomServer() {
   try {
     // Create Next.js app
-    const nextApp = next({ 
+    const nextApp = next({
       dev,
       dir: process.cwd(),
       // In production, use the current directory where .next is located
@@ -28,16 +28,25 @@ async function createCustomServer() {
       if (req.url?.startsWith('/api/socketio')) {
         return;
       }
+      
+      // Force HTTPS in production
+      if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+        return res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` }).end();
+      }
+      
       handle(req, res);
     });
 
-    // Setup Socket.IO
+    // Setup Socket.IO with secure CORS configuration
     const io = new Server(server, {
       path: '/api/socketio',
       cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-      }
+        origin: process.env.NODE_ENV === 'production' ? false : ["http://localhost:3000", "http://127.0.0.1:3000"],
+        methods: ["GET", "POST"],
+        credentials: true,
+        allowedHeaders: ['authorization', 'content-type', 'x-user-id', 'x-user-email', 'x-user-role'],
+      },
+      allowEIO3: true,
     });
 
     setupSocket(io);
@@ -45,6 +54,9 @@ async function createCustomServer() {
     // Start the server
     server.listen(currentPort, hostname, () => {
       console.log(`> Ready on http://${hostname}:${currentPort}`);
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`> Production mode - HTTPS should be enabled via reverse proxy`);
+      }
       console.log(`> Socket.IO server running at ws://${hostname}:${currentPort}/api/socketio`);
     });
 

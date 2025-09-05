@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { generateJWT, verifyPassword, setAuthCookie, validateEmail, validatePassword, rateLimit } from "@/lib/auth";
+
+// Rate limiting: 5 attempts per 15 minutes
+const checkRateLimit = rateLimit(5, 15 * 60 * 1000);
 
 // Enhanced logging function
 function logDebug(message: string, data?: any) {
-  console.log(`[LOGIN DEBUG] ${message}`, data || '');
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[LOGIN DEBUG] ${message}`, data || '');
+  }
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
   try {
-    const startTime = Date.now();
     logDebug("Login attempt started");
+    
+    // Rate limiting check
+    const rateLimitResult = checkRateLimit(request);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
     
     // Log request details
     const contentType = request.headers.get('content-type');
@@ -20,10 +35,28 @@ export async function POST(request: NextRequest) {
     logDebug("Login attempt for email:", email);
     logDebug("Password length:", password?.length);
 
+    // Input validation
     if (!email || !password) {
       console.log("Missing email or password");
       return NextResponse.json(
         { error: "Email and password are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return NextResponse.json(
+        { error: "Invalid password", details: passwordValidation.errors },
         { status: 400 }
       );
     }
@@ -102,18 +135,28 @@ export async function POST(request: NextRequest) {
     // Remove password from response
     const { password: _, ...adminWithoutPassword } = admin;
 
-    // Simulate token generation (in a real app, use JWT)
-    const token = "admin-token-" + admin.id + "-" + Date.now();
+    // Generate secure JWT token
+    const token = generateJWT({
+      id: admin.id,
+      email: admin.email,
+      role: admin.role
+    });
+    
     const totalTime = Date.now() - startTime;
     logDebug("Login successful for email:", email);
     logDebug("Total login process took:", totalTime + "ms");
 
-    return NextResponse.json({
+    // Create response with HttpOnly cookie
+    const response = NextResponse.json({
       success: true,
       message: "Login successful",
-      user: adminWithoutPassword,
-      token: token
+      user: adminWithoutPassword
     });
+
+    // Set secure HttpOnly cookie
+    setAuthCookie(response, token);
+
+    return response;
 
   } catch (error) {
     const totalTime = Date.now() - startTime;

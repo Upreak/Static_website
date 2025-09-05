@@ -54,10 +54,7 @@ export default function AdminLoginPage() {
 
       if (response.ok) {
         console.log("[LOGIN FRONTEND] Login successful, redirecting...");
-        // Store authentication token (in a real app, use httpOnly cookies)
-        localStorage.setItem("adminToken", data.token);
-        localStorage.setItem("adminUser", JSON.stringify(data.user));
-        
+        // The token is now stored in HttpOnly cookie by the server
         // Redirect to admin dashboard
         window.location.href = "/admin/dashboard";
       } else {
@@ -79,7 +76,7 @@ export default function AdminLoginPage() {
         {/* Logo and Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4 p-2">
-            <img src="/logo.svg" alt="Upreak Logo" className="h-8 w-auto" />
+            <img src="/Text logo.png" alt="Upreak Logo" className="h-8 w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Upreak Admin</h1>
           <p className="text-gray-600 mt-2">Sign in to access the admin panel</p>
@@ -166,11 +163,10 @@ export default function AdminLoginPage() {
                 <li>You'll be redirected to the admin dashboard</li>
               </ol>
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="font-medium text-blue-900 mb-2">Default Admin Credentials:</p>
+                <p className="font-medium text-blue-900 mb-2">Admin Access:</p>
                 <div className="space-y-1 text-blue-800">
-                  <p><strong>Super Admin:</strong> admin@upreak.com / admin123</p>
-                  <p><strong>Editor:</strong> editor@upreak.com / editor123</p>
-                  <p><strong>Manager:</strong> manager@upreak.com / manager123</p>
+                  <p><strong>Note:</strong> Please contact your system administrator for login credentials</p>
+                  <p><strong>Security:</strong> Never share your credentials with anyone</p>
                 </div>
               </div>
               <p className="mt-3">

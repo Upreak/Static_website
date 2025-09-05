@@ -144,7 +144,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.svg" alt="Upreak Logo" className="h-8 w-auto" />
+              <img src="/Text logo.png" alt="Upreak Logo" className="h-8 w-auto" />
             </div>
             <div className="hidden md:flex space-x-8">
               {["home", "about", "services", "process", "contact"].map((section) => (

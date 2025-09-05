@@ -7,15 +7,10 @@ export default function AdminPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("adminToken");
-    const user = localStorage.getItem("adminUser");
-    
-    if (!token || !user) {
-      router.push("/admin/login");
-    } else {
-      router.push("/admin/dashboard");
-    }
+    // Check if user is authenticated via middleware
+    // The middleware handles authentication and redirects to login if not authenticated
+    // No need to check localStorage anymore
+    router.push("/admin/dashboard");
   }, [router]);
 
   return (

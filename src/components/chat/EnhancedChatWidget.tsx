@@ -11,7 +11,7 @@ import {
   X, 
   Minimize2, 
   Maximize2, 
-  Send, 
+  Send,
   User,
   Bot,
   Clock,
@@ -53,6 +53,7 @@ export default function EnhancedChatWidget({
   const [showUserInfoForm, setShowUserInfoForm] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [showChannelSelector, setShowChannelSelector] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const positionClasses = {
@@ -93,8 +94,12 @@ export default function EnhancedChatWidget({
   };
 
   const handleSend = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim()) {
+      setErrorMessage("Please type a message before sending.");
+      return;
+    }
 
+    setErrorMessage("");
     const userMessage = inputValue.trim();
     setInputValue("");
     
@@ -209,6 +214,10 @@ export default function EnhancedChatWidget({
     e.preventDefault();
     if (userInfo.name && userInfo.email) {
       setShowUserInfoForm(false);
+      setErrorMessage("");
+      
+      // Add thank you message
+      addMessage("Thanks for sharing your details. How can we help you today?", "bot", "web");
       
       // Send welcome message if phone is provided
       if (userInfo.phone && userInfo.preferredChannel !== "web") {
@@ -282,7 +291,7 @@ export default function EnhancedChatWidget({
   }
 
   return (
-    <div className={`fixed ${positionClasses[position]} z-50 w-96 max-w-full`} style={{ maxHeight: '80vh' }}>
+    <div className={`fixed ${positionClasses[position]} z-50 w-96 max-w-full h-[80vh] flex flex-col`} style={{ maxHeight: '80vh' }}>
       <Card className="shadow-2xl border-0 h-full flex flex-col">
         <CardHeader
           className="pb-3 flex-shrink-0"
@@ -369,7 +378,7 @@ export default function EnhancedChatWidget({
             ) : (
               <>
                 {/* Messages Area */}
-                <div className="h-96 overflow-y-auto p-4 space-y-4 flex-shrink-0" id="messages-container">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4" id="messages-container">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -427,7 +436,7 @@ export default function EnhancedChatWidget({
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 border-t">
+                <div className="p-4 border-t bg-white rounded-b-lg">
                   <div className="flex items-center space-x-2 mb-2">
                     <Button
                       variant="ghost"
@@ -472,16 +481,22 @@ export default function EnhancedChatWidget({
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder="Type your message..."
-                      className="flex-1"
+                      className="flex-1 rounded-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                     <Button
                       onClick={handleSend}
                       disabled={!inputValue.trim() || isTyping}
+                      className="rounded-full px-4 py-2"
                       style={{ backgroundColor: primaryColor }}
                     >
                       <Send className="w-4 h-4" />
                     </Button>
                   </div>
+                  {errorMessage && (
+                    <p className="text-red-500 text-xs mt-2 text-center">
+                      {errorMessage}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 mt-2 text-center">
                     Powered by Upreak AI + Twilio • Your data is secure and confidential
                   </p>

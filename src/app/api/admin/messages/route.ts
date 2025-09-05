@@ -1,12 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getAuthToken, verifyJWT, sanitizeInput } from "@/lib/auth";
 
-// GET /api/admin/messages - Get all messages
+// GET /api/admin/messages - Get all messages (admin only)
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const token = getAuthToken(request);
+    if (!token) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const decoded = verifyJWT(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const download = searchParams.get("download");
+
+    // Validate status parameter
+    if (status && !["NEW", "REPLIED", "CLOSED"].includes(status.toUpperCase())) {
+      return NextResponse.json(
+        { error: "Invalid status parameter" },
+        { status: 400 }
+      );
+    }
 
     const where = status ? { status: status.toUpperCase() as any } : {};
 
@@ -67,6 +93,7 @@ export async function POST(request: NextRequest) {
   try {
     const { name, email, phone, message } = await request.json();
 
+    // Input validation
     if (!name || !email || !message) {
       return NextResponse.json(
         { error: "Name, email, and message are required" },
@@ -74,12 +101,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize inputs
+    const sanitizedName = sanitizeInput(name);
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedPhone = phone ? sanitizeInput(phone) : '';
+    const sanitizedMessage = sanitizeInput(message);
+
     const chatMessage = await db.chatMessage.create({
       data: {
-        name,
-        email,
-        phone,
-        message,
+        name: sanitizedName,
+        email: sanitizedEmail,
+        phone: sanitizedPhone,
+        message: sanitizedMessage,
         status: "NEW"
       }
     });
@@ -94,14 +136,40 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT /api/admin/messages - Update message status or reply
+// PUT /api/admin/messages - Update message status or reply (admin only)
 export async function PUT(request: NextRequest) {
   try {
+    // Check authentication
+    const token = getAuthToken(request);
+    if (!token) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const decoded = verifyJWT(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 }
+      );
+    }
+
     const { id, status, reply, repliedBy } = await request.json();
 
+    // Input validation
     if (!id) {
       return NextResponse.json(
         { error: "Message ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate status parameter
+    if (status && !["NEW", "REPLIED", "CLOSED"].includes(status.toUpperCase())) {
+      return NextResponse.json(
+        { error: "Invalid status parameter" },
         { status: 400 }
       );
     }
@@ -114,13 +182,13 @@ export async function PUT(request: NextRequest) {
     }
     
     if (reply !== undefined) {
-      updateData.response = reply;
+      updateData.response = sanitizeInput(reply);
       updateData.respondedAt = new Date();
       console.log(`[Messages API] Adding reply to message ${id}`);
     }
     
     if (repliedBy) {
-      updateData.handledBy = repliedBy;
+      updateData.handledBy = sanitizeInput(repliedBy);
     }
 
     const updatedMessage = await db.chatMessage.update({

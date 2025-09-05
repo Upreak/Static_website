@@ -5,9 +5,13 @@ export class TwilioService {
   private client: twilio.Twilio;
 
   constructor() {
-    // In a real application, these would come from environment variables
-    const accountSid = process.env.TWILIO_ACCOUNT_SID || "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-    const authToken = process.env.TWILIO_AUTH_TOKEN || "your_auth_token";
+    // Validate required environment variables
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+      throw new Error('Twilio credentials are not configured. Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables.');
+    }
+    
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
     
     this.client = twilio(accountSid, authToken);
   }
@@ -17,22 +21,33 @@ export class TwilioService {
    */
   async sendSMS(to: string, body: string, from?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const fromNumber = from || process.env.TWILIO_PHONE_NUMBER || "+1234567890";
+      const fromNumber = from || process.env.TWILIO_PHONE_NUMBER;
       
-      // For demo purposes, we'll simulate the API call
-      // In a real application, you would use:
-      // const message = await this.client.messages.create({
-      //   body,
-      //   from: fromNumber,
-      //   to
-      // });
+      if (!fromNumber) {
+        return {
+          success: false,
+          error: "Twilio phone number is not configured"
+        };
+      }
+      
+      // Validate phone number format
+      if (!/^\+?[1-9]\d{1,14}$/.test(to)) {
+        return {
+          success: false,
+          error: "Invalid recipient phone number format"
+        };
+      }
 
-      // Simulate successful message sending
-      console.log(`[Twilio Demo] SMS sent to ${to}: ${body}`);
-      
+      // In a real application, you would use:
+      const message = await this.client.messages.create({
+        body,
+        from: fromNumber,
+        to
+      });
+
       return {
         success: true,
-        messageId: `demo_sms_${Date.now()}`
+        messageId: message.sid
       };
     } catch (error) {
       console.error("Error sending SMS:", error);
@@ -48,22 +63,33 @@ export class TwilioService {
    */
   async sendWhatsApp(to: string, body: string, from?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const fromNumber = from || process.env.TWILIO_WHATSAPP_NUMBER || "whatsapp:+14155238886";
+      const fromNumber = from || process.env.TWILIO_WHATSAPP_NUMBER;
       
-      // For demo purposes, we'll simulate the API call
-      // In a real application, you would use:
-      // const message = await this.client.messages.create({
-      //   body,
-      //   from: fromNumber,
-      //   to: `whatsapp:${to}`
-      // });
+      if (!fromNumber) {
+        return {
+          success: false,
+          error: "Twilio WhatsApp number is not configured"
+        };
+      }
+      
+      // Validate phone number format
+      if (!/^\+?[1-9]\d{1,14}$/.test(to)) {
+        return {
+          success: false,
+          error: "Invalid recipient phone number format"
+        };
+      }
 
-      // Simulate successful message sending
-      console.log(`[Twilio Demo] WhatsApp sent to ${to}: ${body}`);
-      
+      // In a real application, you would use:
+      const message = await this.client.messages.create({
+        body,
+        from: fromNumber,
+        to: `whatsapp:${to}`
+      });
+
       return {
         success: true,
-        messageId: `demo_whatsapp_${Date.now()}`
+        messageId: message.sid
       };
     } catch (error) {
       console.error("Error sending WhatsApp message:", error);

@@ -1,77 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { z } from "zod";
-import { settingsCache, invalidateCache } from "@/lib/cache";
+// Test script for contact settings validation
+const { z } = require('zod');
 
-// GET /api/admin/settings - Get all settings (with cache)
-export async function GET(request: NextRequest) {
-  try {
-    // Try to get from cache first
-    const cachedSettings = await settingsCache.getAll();
-    
-    if (Object.keys(cachedSettings).length > 0) {
-      // Transform cached settings to match the expected format
-      const transformedSettings = Object.keys(cachedSettings).reduce((acc, key) => {
-        const cachedValue = cachedSettings[key];
-        if (typeof cachedValue === 'object' && cachedValue.value !== undefined) {
-          // Already in correct format
-          acc[key] = cachedValue;
-        } else {
-          // Transform from string format to object format
-          acc[key] = {
-            value: cachedValue,
-            type: "STRING",
-            description: null,
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return acc;
-      }, {} as Record<string, any>);
-      
-      return NextResponse.json({ success: true, settings: transformedSettings });
-    }
-
-    // Fallback to database if cache is empty
-    const settings = await db.siteSetting.findMany({
-      include: {
-        updater: {
-          select: { id: true, name: true, email: true }
-        }
-      },
-      orderBy: { key: "asc" }
-    });
-
-    // Convert settings array to key-value object in the format expected by frontend
-    const settingsObj = settings.reduce((acc, setting) => {
-      acc[setting.key] = {
-        value: setting.value,
-        type: setting.type,
-        description: setting.description,
-        updatedAt: setting.updatedAt
-      };
-      return acc;
-    }, {} as Record<string, any>);
-
-    // Cache the results
-    settingsCache.set('all_settings', settingsObj);
-
-    return NextResponse.json({ success: true, settings: settingsObj });
-  } catch (error) {
-    console.error("Error fetching settings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch settings" },
-      { status: 500 }
-    );
-  }
-}
-
-// Phone number validation regex (accepts +91 format with spaces and parentheses for WhatsApp notes)
+// Copy the validation logic from the updated settings route
 const phoneRegex = /^(\+?\d{1,3}[- ]?)?\d{10,15}(\s*\(.*\))?$/;
-
-// Email validation regex
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Social media URL validation regex
 const socialMediaRegex = {
   facebook: /^https?:\/\/(www\.)?facebook\.com\/.+/,
   twitter: /^https?:\/\/(www\.)?twitter\.com\/.+/,
@@ -79,14 +12,13 @@ const socialMediaRegex = {
   instagram: /^https?:\/\/(www\.)?instagram\.com\/.+/,
 };
 
-// Office hours JSON schema validation
 const officeHoursSchema = z.array(z.object({
   day: z.string().min(1, "Day is required").max(50, "Day name too long"),
   hours: z.string().min(1, "Hours are required").max(50, "Hours too long")
 }));
 
 // Helper function to normalize setting input to expected object format
-const normalizeSetting = (value: any, defaultValue: string = "") => {
+const normalizeSetting = (value, defaultValue = "") => {
   if (typeof value === 'object' && value !== null && (value.value !== undefined || value.type !== undefined)) {
     // Already in object format
     return {
@@ -257,135 +189,162 @@ const settingsSchema = z.object({
   )
 });
 
-// Office hours validation function
-const validateOfficeHours = (hoursString: string) => {
-  try {
-    const hours = JSON.parse(hoursString);
-    officeHoursSchema.parse(hours);
-    return { valid: true, error: null };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        valid: false,
-        error: error.issues[0]?.message || "Invalid office hours format"
-      };
-    }
-    return {
-      valid: false,
-      error: "Invalid JSON format in Office Hours"
-    };
-  }
+// Test data with the provided contact details
+const testSettings = {
+  // Test with plain strings (should be normalized to objects)
+  site_name: "Upreak",
+  site_description: "Talent-Sourcing Solutions Partnering to Deliver Exceptional Talent",
+  
+  // Contact details as provided in the task
+  contact_email: "info@upreak.com",
+  contact_phone: "+91 99013 81877 (WhatsApp only)",
+  contact_address: "UPREAK INDIA PRIVATE LIMITED 5-3-133,507,1st Floor,3rd, Neelakanteshwara Colony, Gangavathi, Koppal- 583227, Karnataka",
+  contact_hours: "Monday to Saturday 9.30 am to 6.30 pm",
+  contact_description: "Professional recruitment services with a focus on talent sourcing and staffing solutions.",
+  
+  // Footer settings
+  footer_address: "UPREAK INDIA PRIVATE LIMITED 5-3-133,507,1st Floor,3rd, Neelakanteshwara Colony, Gangavathi, Koppal- 583227, Karnataka",
+  footer_get_in_touch: "Get in touch with us for your recruitment needs. We provide comprehensive staffing solutions tailored to your business requirements.",
+  footer_copyright: "© {year} Upreak. All rights reserved.",
+  
+  // Social media links (testing with empty values as per task)
+  social_facebook: "",
+  social_twitter: "",
+  social_linkedin: "",
+  social_instagram: "",
+  
+  // Logo and favicon
+  site_logo: "",
+  site_favicon: ""
 };
 
-// POST /api/admin/settings - Update settings
-export async function POST(request: NextRequest) {
-  try {
-    const { settings, updatedBy } = await request.json();
+// Test with object format (what the frontend actually sends)
+const testSettingsWithObjects = {
+  site_name: { value: "Upreak", type: "STRING" },
+  site_description: { value: "Talent-Sourcing Solutions Partnering to Deliver Exceptional Talent", type: "STRING" },
+  contact_email: { value: "info@upreak.com", type: "STRING" },
+  contact_phone: { value: "+91 99013 81877 (WhatsApp only)", type: "STRING" },
+  contact_address: { value: "UPREAK INDIA PRIVATE LIMITED 5-3-133,507,1st Floor,3rd, Neelakanteshwara Colony, Gangavathi, Koppal- 583227, Karnataka", type: "STRING" },
+  contact_hours: { value: "Monday to Saturday 9.30 am to 6.30 pm", type: "STRING" },
+  contact_description: { value: "Professional recruitment services with a focus on talent sourcing and staffing solutions.", type: "STRING" },
+  footer_address: { value: "UPREAK INDIA PRIVATE LIMITED 5-3-133,507,1st Floor,3rd, Neelakanteshwara Colony, Gangavathi, Koppal- 583227, Karnataka", type: "STRING" },
+  footer_get_in_touch: { value: "Get in touch with us for your recruitment needs. We provide comprehensive staffing solutions tailored to your business requirements.", type: "STRING" },
+  footer_copyright: { value: "© {year} Upreak. All rights reserved.", type: "STRING" },
+  social_facebook: { value: "", type: "STRING" },
+  social_twitter: { value: "", type: "STRING" },
+  social_linkedin: { value: "", type: "STRING" },
+  social_instagram: { value: "", type: "STRING" },
+  site_logo: { value: "", type: "STRING" },
+  site_favicon: { value: "", type: "STRING" }
+};
 
-    if (!settings || !updatedBy) {
-      return NextResponse.json(
-        { error: "Settings and updatedBy are required" },
-        { status: 400 }
-      );
-    }
+console.log("=== Testing Contact Settings Validation ===\n");
 
-    // Validate settings using Zod schema
-    const validatedSettings = settingsSchema.parse(settings);
-    const updatedSettings: any[] = [];
-    const validationErrors: any[] = [];
-
-    // Special validation for office hours
-    if (settings.contact_hours?.value) {
-      const officeHoursValidation = validateOfficeHours(settings.contact_hours.value);
-      if (!officeHoursValidation.valid) {
-        validationErrors.push({
-          field: "contact_hours",
-          message: officeHoursValidation.error || "Invalid office hours format"
-        });
-      }
-    }
-
-    // Check for email uniqueness if contact_email is being updated
-    if (settings.contact_email?.value) {
-      const existingEmail = await db.siteSetting.findUnique({
-        where: { key: "contact_email" }
-      });
-      
-      if (existingEmail && existingEmail.value !== settings.contact_email.value) {
-        // Check if this email already exists in another setting
-        const emailExists = await db.siteSetting.findFirst({
-          where: {
-            key: "contact_email",
-            value: settings.contact_email.value,
-            NOT: { id: existingEmail.id }
-          }
-        });
-        
-        if (emailExists) {
-          validationErrors.push({
-            field: "contact_email",
-            message: "This email address is already in use"
-          });
-        }
-      }
-    }
-
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        { error: "Validation failed", details: validationErrors },
-        { status: 400 }
-      );
-    }
-
-    for (const [key, data] of Object.entries(validatedSettings)) {
-      const { value, type } = data;
-
-      // Sanitize input
-      const sanitizedValue = value?.toString().trim() || '';
-      
-      // Update or create setting
-      const setting = await db.siteSetting.upsert({
-        where: { key },
-        update: {
-          value: sanitizedValue,
-          type: type as any,
-          updatedBy,
-          updatedAt: new Date()
-        },
-        create: {
-          key,
-          value: sanitizedValue,
-          type: type as any,
-          updatedBy
-        }
-      });
-
-      updatedSettings.push(setting);
-    }
-
-    // Invalidate cache after successful update
-    invalidateCache(['all_settings']);
-
-    return NextResponse.json({ success: true, settings: updatedSettings });
-  } catch (error) {
-    console.error("Error updating settings:", error);
-    
-    if (error instanceof z.ZodError) {
-      // Format Zod errors to be more specific
-      const formattedErrors = error.issues.map(issue => ({
-        field: issue.path.join('.'),
-        message: issue.message
-      }));
-      
-      return NextResponse.json(
-        { error: "Validation failed", details: formattedErrors },
-        { status: 400 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: "Failed to update settings" },
-      { status: 500 }
-    );
-  }
+// Test 1: Plain strings
+console.log("Test 1: Plain string input");
+try {
+  const result1 = settingsSchema.parse(testSettings);
+  console.log("✅ Plain strings validation passed!");
+  console.log("Normalized result:", JSON.stringify(result1, null, 2));
+} catch (error) {
+  console.log("❌ Plain strings validation failed:");
+  console.log(error.issues);
 }
+
+console.log("\n" + "=".repeat(50) + "\n");
+
+// Test 2: Object format
+console.log("Test 2: Object format input");
+try {
+  const result2 = settingsSchema.parse(testSettingsWithObjects);
+  console.log("✅ Object format validation passed!");
+  console.log("Result:", JSON.stringify(result2, null, 2));
+} catch (error) {
+  console.log("❌ Object format validation failed:");
+  console.log(error.issues);
+}
+
+console.log("\n" + "=".repeat(50) + "\n");
+
+// Test 3: Mixed format (some strings, some objects)
+console.log("Test 3: Mixed format input");
+const mixedSettings = {
+  ...testSettings,
+  contact_email: { value: "info@upreak.com", type: "STRING" }, // Object
+  contact_phone: "+91 99013 81877 (WhatsApp only)" // String
+};
+
+try {
+  const result3 = settingsSchema.parse(mixedSettings);
+  console.log("✅ Mixed format validation passed!");
+  console.log("Normalized result:", JSON.stringify(result3, null, 2));
+} catch (error) {
+  console.log("❌ Mixed format validation failed:");
+  console.log(error.issues);
+}
+
+console.log("\n" + "=".repeat(50) + "\n");
+
+// Test 4: Invalid email
+console.log("Test 4: Invalid email validation");
+const invalidEmailSettings = {
+  ...testSettings,
+  contact_email: "invalid-email"
+};
+
+try {
+  const result4 = settingsSchema.parse(invalidEmailSettings);
+  console.log("❌ Invalid email should have failed but passed!");
+} catch (error) {
+  console.log("✅ Invalid email correctly rejected:");
+  console.log(error.issues[0]?.message);
+}
+
+console.log("\n" + "=".repeat(50) + "\n");
+
+// Test 5: Invalid phone
+console.log("Test 5: Invalid phone validation");
+const invalidPhoneSettings = {
+  ...testSettings,
+  contact_phone: "123"
+};
+
+try {
+  const result5 = settingsSchema.parse(invalidPhoneSettings);
+  console.log("❌ Invalid phone should have failed but passed!");
+} catch (error) {
+  console.log("✅ Invalid phone correctly rejected:");
+  console.log(error.issues[0]?.message);
+}
+
+console.log("\n" + "=".repeat(50) + "\n");
+
+// Test 6: Social media URL validation
+console.log("Test 6: Social media URL validation");
+const socialMediaSettings = {
+  ...testSettings,
+  social_facebook: "https://facebook.com/upreak",
+  social_twitter: "https://twitter.com/upreak",
+  social_linkedin: "https://linkedin.com/company/upreak",
+  social_instagram: "https://instagram.com/upreak"
+};
+
+try {
+  const result6 = settingsSchema.parse(socialMediaSettings);
+  console.log("✅ Social media URLs validation passed!");
+  console.log("Social media results:", {
+    facebook: result6.social_facebook.value,
+    twitter: result6.social_twitter.value,
+    linkedin: result6.social_linkedin.value,
+    instagram: result6.social_instagram.value
+  });
+} catch (error) {
+  console.log("❌ Social media URLs validation failed:");
+  console.log(error.issues);
+}
+
+console.log("\n" + "=".repeat(50) + "\n");
+
+console.log("=== Test Summary ===");
+console.log("All tests completed! The schema should now handle both plain strings and object formats.");
+console.log("The contact details provided in the task should be validated correctly.");

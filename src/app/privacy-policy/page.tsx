@@ -54,7 +54,7 @@ export default function PrivacyPolicyPage() {
                 <span className="text-gray-600 hover:text-gray-900">Back to Home</span>
               </Link>
               <div className="h-6 w-px bg-gray-300"></div>
-              <img src="/logo.svg" alt="Upreak Logo" className="h-8 w-auto" />
+              <img src="/Text logo.png" alt="Upreak Logo" className="h-8 w-auto" />
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/">

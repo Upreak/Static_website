@@ -1679,7 +1679,7 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <img src="/logo.svg" alt="Upreak Logo" className="h-6 w-auto mr-2" />
+              <img src="/Text logo.png" alt="Upreak Logo" className="h-6 w-auto mr-2" />
               <span className="text-xl font-bold text-gray-900">Admin</span>
             </div>
             <div className="flex items-center space-x-4">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sanitizeInput } from "@/lib/auth";
 
 // GET /api/contact - Get contact information
 export async function GET(request: NextRequest) {
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
     
     const { phones, emails, address, hours, description, updatedBy } = await request.json();
 
+    // Input validation
     if (!updatedBy) {
       return NextResponse.json(
         { error: "updatedBy is required" },
@@ -117,13 +119,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate and sanitize inputs
+    if (phones && !Array.isArray(phones)) {
+      return NextResponse.json(
+        { error: "Phones must be an array" },
+        { status: 400 }
+      );
+    }
+
+    if (emails && !Array.isArray(emails)) {
+      return NextResponse.json(
+        { error: "Emails must be an array" },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (emails) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      for (const email of emails) {
+        if (!emailRegex.test(email)) {
+          return NextResponse.json(
+            { error: `Invalid email format: ${email}` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // Sanitize string inputs
+    const sanitizedAddress = address ? sanitizeInput(address) : '';
+    const sanitizedDescription = description ? sanitizeInput(description) : '';
+
     // Update each contact setting
     const updates = [
-      { key: "contact_phone", value: JSON.stringify(phones) },
-      { key: "contact_email", value: JSON.stringify(emails) },
-      { key: "contact_address", value: address },
-      { key: "contact_hours", value: JSON.stringify(hours) },
-      { key: "contact_description", value: description }
+      { key: "contact_phone", value: JSON.stringify(phones || []) },
+      { key: "contact_email", value: JSON.stringify(emails || []) },
+      { key: "contact_address", value: sanitizedAddress },
+      { key: "contact_hours", value: JSON.stringify(hours || []) },
+      { key: "contact_description", value: sanitizedDescription }
     ];
 
     for (const update of updates) {
@@ -132,14 +166,14 @@ export async function POST(request: NextRequest) {
         update: {
           value: update.value,
           type: "JSON",
-          updatedBy,
+          updatedBy: sanitizeInput(updatedBy),
           updatedAt: new Date()
         },
         create: {
           key: update.key,
           value: update.value,
           type: "JSON",
-          updatedBy
+          updatedBy: sanitizeInput(updatedBy)
         }
       });
     }

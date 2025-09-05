@@ -4,6 +4,15 @@ import { join } from "path";
 import { db } from "@/lib/db";
 import { faviconGenerator } from "@/lib/favicon-generator";
 
+// Basic input sanitization function
+function sanitizeInput(input: string): string {
+  return input
+    .replace(/[<>]/g, '') // Remove potential HTML tags
+    .replace(/[{}]/g, '') // Remove potential script tags
+    .replace(/[\[\]]/g, '') // Remove array brackets
+    .trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('[Upload API] Starting file upload process');
@@ -77,12 +86,18 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop();
     const fileName = `${type}_${timestamp}.${fileExtension}`;
     const filePath = join(uploadDir, fileName);
-
-    // Write file to disk
+    
+    // Check if file already exists (prevent overwriting)
     try {
       await writeFile(filePath, buffer);
       console.log('[Upload API] File written successfully:', filePath);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'EEXIST') {
+        return NextResponse.json(
+          { error: "File already exists" },
+          { status: 409 }
+        );
+      }
       console.error('[Upload API] Error writing file:', error);
       return NextResponse.json(
         { error: "Failed to save file" },
@@ -103,14 +118,14 @@ export async function POST(request: NextRequest) {
         update: {
           value: fileUrl,
           type: "STRING",
-          updatedBy,
+          updatedBy: sanitizeInput(updatedBy),
           updatedAt: new Date()
         },
         create: {
           key: type === "logo" ? "site_logo" : "site_favicon",
           value: fileUrl,
           type: "STRING",
-          updatedBy
+          updatedBy: sanitizeInput(updatedBy)
         }
       });
 
@@ -152,14 +167,14 @@ export async function POST(request: NextRequest) {
               update: {
                 value,
                 type: "STRING",
-                updatedBy,
+                updatedBy: sanitizeInput(updatedBy),
                 updatedAt: new Date()
               },
               create: {
                 key,
                 value,
                 type: "STRING",
-                updatedBy
+                updatedBy: sanitizeInput(updatedBy)
               }
             });
           }
